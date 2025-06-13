@@ -3,13 +3,14 @@ import { randomUUID } from "node:crypto";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { isInitializeRequest } from "@modelcontextprotocol/sdk/types.js"
+import authenticationMiddleware from "./authenticationMiddleware";
 
 const app = express();
 app.use(express.json());
 
 const transports: { [sessionId: string]: StreamableHTTPServerTransport } = {};
 
-app.post('/mcp', async (req, res) => {
+app.post('/mcp', authenticationMiddleware, async (req, res) => {
     const sessionId = req.headers['mcp-session-id'] as string | undefined;
     let transport: StreamableHTTPServerTransport;
 
