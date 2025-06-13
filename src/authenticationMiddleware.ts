@@ -1,3 +1,5 @@
+process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+
 export default async (req: any, res: any, next: any) => {
     const authHeader = req.headers.authorization;
 
