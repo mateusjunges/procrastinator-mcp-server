@@ -173,7 +173,7 @@ app.post('/mcp', authenticationMiddleware, async (req, res) => {
                 id: z.number(),
                 title: z.string(),
                 description: z.string(),
-                completed_at: z.string().regex(/^\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}$/, "Completed at must be in YYYY-MM-DD H:i:s format").optional(),
+                completed_at: z.string().regex(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/, "Completed at must be in YYYY-MM-DD HH:ii:ss format").optional(),
             },
             async (message, extra) => {
                 const userToken = extra?.authInfo?.token;
