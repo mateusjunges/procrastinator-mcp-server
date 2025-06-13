@@ -1,12 +1,15 @@
 import express from "express";
+import cors from 'cors';
 import { randomUUID } from "node:crypto";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { isInitializeRequest } from "@modelcontextprotocol/sdk/types.js"
 import authenticationMiddleware from "./authenticationMiddleware";
+import { z } from "zod";
 
 const app = express();
 app.use(express.json());
+app.use(cors());
 
 const transports: { [sessionId: string]: StreamableHTTPServerTransport } = {};
 
@@ -30,11 +33,201 @@ app.post('/mcp', authenticationMiddleware, async (req, res) => {
             }
         };
         const server = new McpServer({
-            name: "example-server",
+            name: "procrastinator-mcp-server",
             version: "1.0.0"
         });
 
         // Here's where we'll register our tools
+        server.tool(
+            'list_tasks',
+            {},
+            async (message, extra) => {
+                const userToken = extra?.authInfo?.token;
+
+                try {
+                    const response = await fetch('https://procrastinator.test/api/tasks', {
+                        headers: {
+                            Authorization: `Bearer ${userToken}`,
+                            'Content-Type': 'application/json',
+                            'User-Agent': 'procrastinator-mcp/1.0.0',
+                            'Accept': 'application/json',
+                        }
+                    })
+
+                    if (! response.ok) {
+                        return {
+                            content: [
+                                {
+                                    type: "text",
+                                    text: `Failed to list tasks: ${response.status} ${response.statusText}`
+                                }
+                            ]
+                        }
+                    }
+
+                    const tasks = await response.json();
+
+                    if (tasks.length === 0) {
+                        return {
+                            content: [
+                                {
+                                    type: "text",
+                                    text: "No tasks found."
+                                }
+                            ]
+                        };
+                    }
+
+                    const formattedTasks = tasks.data.map((task: any) => [
+                            `ID: ${task.id}`,
+                            `Title: ${task.title}`,
+                            `Description: ${task.description || 'No description'}`,
+                            `Completed At: ${task.completed_at ? new Date(task.completed_at).toLocaleString() : 'Not completed'}`,
+                        ].join('\n')
+                    ).join('\n');
+
+                    return {
+                        content: [
+                            {
+                                type: "text",
+                                text: `Tasks:\n\n${formattedTasks}`
+                            }
+                        ]
+                    };
+                } catch (error) {
+                    console.error('Error fetching tasks:', error);
+                    return {
+                        content: [
+                            {
+                                type: "text",
+                                text: "Failed to fetch tasks due to an error."
+                            }
+                        ]
+                    };
+                }
+            }
+        )
+
+        server.tool(
+            'create_task',
+            {
+                title: z.string(),
+                description: z.string().optional(),
+            },
+            async (message, extra) => {
+                const userToken = extra?.authInfo?.token;
+
+                try {
+                    const response = await fetch('https://procrastinator.test/api/tasks', {
+                        method: 'POST',
+                        headers: {
+                            Authorization: `Bearer ${userToken}`,
+                            'Content-Type': 'application/json',
+                            'User-Agent': 'procrastinator-mcp/1.0.0',
+                            'Accept': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            title: message.title,
+                            description: message.description,
+                        })
+                    });
+
+                    if (! response.ok) {
+                        return {
+                            content: [
+                                {
+                                    type: "text",
+                                    text: `Failed to create task: ${response.status} ${response.statusText}`
+                                }
+                            ]
+                        };
+                    }
+
+                    const task = await response.json();
+
+                    return {
+                        content: [
+                            {
+                                type: "text",
+                                text: `Task created successfully:\n\nID: ${task.data.id}\nTitle: ${task.data.title}\nDescription: ${task.data.description || 'No description'}\nCompleted At: ${task.data.completed_at ? new Date(task.data.completed_at).toLocaleString() : 'Not completed'}`
+                            }
+                        ]
+                    };
+                } catch (error) {
+                    console.error('Error creating task:', error);
+                    return {
+                        content: [
+                            {
+                                type: "text",
+                                text: "Failed to create task due to an error."
+                            }
+                        ]
+                    };
+                }
+            }
+        );
+
+        server.tool(
+            'update_task',
+            {
+                id: z.number(),
+                title: z.string(),
+                description: z.string(),
+                completed_at: z.string().regex(/^\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}$/, "Completed at must be in YYYY-MM-DD H:i:s format").optional(),
+            },
+            async (message, extra) => {
+                const userToken = extra?.authInfo?.token;
+
+                try {
+                    const response = await fetch(`https://procrastinator.test/api/tasks/${message.id}`, {
+                        method: 'PUT',
+                        headers: {
+                            Authorization: `Bearer ${userToken}`,
+                            'Content-Type': 'application/json',
+                            'User-Agent': 'procrastinator-mcp/1.0.0',
+                            'Accept': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            title: message.title,
+                            description: message.description,
+                            completed_at: message.completed_at ? message.completed_at : null,
+                        })
+                    })
+
+                    if (! response.ok) {
+                        return {
+                            content: [
+                                {
+                                    type: "text",
+                                    text: `Failed to update task: ${response.status} ${response.statusText}`
+                                }
+                            ]
+                        };
+                    }
+
+                    const task = await response.json();
+
+                    return {
+                        content: [
+                            {
+                                type: "text",
+                                text: `Task updated successfully:\n\nID: ${task.data.id}\nTitle: ${task.data.title}\nDescription: ${task.data.description || 'No description'}\nCompleted At: ${task.data.completed_at ? new Date(task.data.completed_at).toLocaleString() : 'Not completed'}`
+                            }
+                        ]
+                    };
+                } catch (error) {
+                    console.error('Error updating task:', error);
+                    return {
+                        content: [
+                            {
+                                type: "text",
+                                text: "Failed to update task due to an error."
+                            }
+                        ]
+                    };
+                }
+            }
+        )
 
         await server.connect(transport);
     } else {
