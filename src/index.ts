@@ -66,4 +66,22 @@ const handleSessionRequest = async (req: express.Request, res: express.Response)
 app.get('/mcp', handleSessionRequest);
 app.delete('/mcp', handleSessionRequest);
 
-app.listen(3000);
+app.get('/.well-known/oauth-protected-resource', (req, res) => {
+    res.json({
+        resource: 'http://localhost:3000',
+        authorization_servers: ['https://procrastinator.test'],
+        scopes_supported: [
+            'claudeai',
+            'tasks:create',
+            'tasks:update',
+            'tasks:delete',
+            'tasks:view',
+        ],
+        bearer_methods_supported: ["header"],
+        introspection_endpoint: "none",
+        introspection_endpoint_auth_methods_supported: ["none"],
+    });
+});
+
+app.listen(3000).on('listening', () => {
+});
