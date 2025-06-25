@@ -12,7 +12,7 @@ export default async (req: any, res: any, next: any) => {
     const token = authHeader.split(' ')[1];
 
     try {
-        const userResponse = await fetch('http://procrastinator.test/api/user', {
+        const userResponse = await fetch('https://procrastinator.test/api/user', {
             headers: {
                 Authorization: `Bearer ${token}`,
                 Accept: 'application/json',

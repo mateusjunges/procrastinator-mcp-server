@@ -276,5 +276,4 @@ app.get('/.well-known/oauth-protected-resource', (req, res) => {
     });
 });
 
-app.listen(3000).on('listening', () => {
-});
+app.listen(3000);
